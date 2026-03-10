@@ -129,7 +129,7 @@ bool udp_connect(UdpState* state)
 	}
 
 	state->connected = true;
-	printf("UDP: connected to %s:%u\n", state->ip, state->port);
+	printf("UDP: connected. Targeting %s:%u\n", state->ip, state->port);
 	return true;
 }
 
