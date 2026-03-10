@@ -1,0 +1,2 @@
+rootProject.name = 'spooler_controller'
+include ':app'

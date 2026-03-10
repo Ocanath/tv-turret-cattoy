@@ -1,0 +1,12 @@
+[submodule "external/dartt-protocol"]
+	path = external/dartt-protocol
+	url = https://github.com/ocanath/dartt-protocol
+[submodule "external/byte-stuffing"]
+	path = external/byte-stuffing
+	url = https://github.com/ocanath/byte-stuffing
+[submodule "external/imgui"]
+	path = external/imgui
+	url = https://github.com/ocornut/imgui
+[submodule "external/SDL2-src"]
+	path = external/SDL2-src
+	url = https://github.com/libsdl-org/SDL
