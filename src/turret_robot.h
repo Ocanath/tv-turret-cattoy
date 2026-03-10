@@ -14,6 +14,14 @@ public:
 	dartt_sync_t ds;
 	UdpState socket;
 
+	//for circles
+	bool auto_circles;
+	float laser_ts = 0;
+	int laser_on = 0;
+
+	int read_write(void);
+	int do_circles(float time);
+
 	TurretRobot();
 	~TurretRobot();
 };

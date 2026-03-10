@@ -73,6 +73,20 @@ void render_iface_ui(TurretRobot & robot)
 	}
 	ImGui::Separator();
 
+	if(robot.auto_circles == false)
+	{
+		if(ImGui::Button("Circles: Enable"))
+		{
+			robot.auto_circles = true;
+		}
+	}
+	else
+	{
+		if(ImGui::Button("Circles: Disable"))
+		{
+			robot.auto_circles = false;
+		}
+	}
     ImGui::End();
 }
 

@@ -47,7 +47,7 @@
 #include "turret_robot.h"
 #include "cobs.h"
 
-#include <math.h>
+
 
 
 int main(int argc, char* argv[])
@@ -144,8 +144,6 @@ int main(int argc, char* argv[])
 	bool running = true;
 	bool do_pctl = false;
 	uint8_t prev_space_state = 0;
-	float laser_ts = 0;
-	int laser_on = 0;
 	while (running)
 	{
 		// Poll events
@@ -171,59 +169,11 @@ int main(int argc, char* argv[])
 		ImGui::NewFrame();
 
 
-		float y = sin(plot.sys_sec) * 100 + 1200;
-		float x = cos(plot.sys_sec) * 500 + 1500;
-		robot.dp_ctl.s0_us = (int32_t)y;
-		robot.dp_ctl.s1_us = (int32_t)x;
-
-		if(plot.sys_sec - laser_ts > 3)
+		if(robot.auto_circles)
 		{
-			laser_ts = plot.sys_sec;
-			laser_on = (~laser_on) & 1;
-			if(laser_on)
-			{
-				robot.dp_ctl.action_flag = 1;
-			}
-			else
-			{
-				robot.dp_ctl.action_flag = 2;
-			}
-			dartt_buffer_t w_laser = {
-				.buf  = (unsigned char *)(&robot.dp_ctl.action_flag),
-				.size = sizeof(uint32_t),
-				.len  = sizeof(uint32_t)
-			};
-			int rc = dartt_write_multi(&w_laser, &robot.ds);
-			if(rc != DARTT_PROTOCOL_SUCCESS)
-			{
-				printf("LASER WRITE fail %d\n", rc);
-			}
+			robot.do_circles(plot.sys_sec);
 		}
-
-		dartt_buffer_t r = {
-            .buf  = robot.ds.ctl_base.buf,
-            .size = sizeof(uint32_t) * 5,
-            .len  = sizeof(uint32_t) * 5
-        };
-        int rc = dartt_read_multi(&r, &robot.ds);
-		if(rc != DARTT_PROTOCOL_SUCCESS)
-		{
-			printf("Read fail %d\n", rc);
-		}
-		else
-		{
-			dartt_buffer_t w_positions = {
-				.buf  = robot.ds.ctl_base.buf,
-				.size = sizeof(uint32_t)*2,
-				.len  = sizeof(uint32_t)*2
-			};
-        	rc = dartt_write_multi(&w_positions, &robot.ds);
-			if(rc != DARTT_PROTOCOL_SUCCESS)
-			{
-				printf("Write fail %d\n", rc);
-			}
-		}
-
+		robot.read_write();
 
 
 		SDL_GetWindowSize(window, &plot.window_width, &plot.window_height);

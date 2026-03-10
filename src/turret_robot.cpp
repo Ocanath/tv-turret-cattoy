@@ -2,6 +2,7 @@
 #include "dartt_init.h"
 #include <cstdio>
 #include <cstring>
+#include <math.h>
 
 TurretRobot::TurretRobot()
 {
@@ -31,6 +32,9 @@ TurretRobot::TurretRobot()
 	ds.user_context_rx = (void*)(&socket);
 	ds.timeout_ms = 10;
 
+	laser_on = 0;
+	laser_ts = 0;
+	auto_circles = false;
 
 	//todo - add imgui interface to this
     snprintf(socket.ip, sizeof(socket.ip), "%s", "192.168.0.204");
@@ -45,4 +49,66 @@ TurretRobot::~TurretRobot()
 	delete[] ds.tx_buf.buf;
 	delete[] ds.rx_buf.buf;
 	udp_disconnect(&socket);
+}
+
+
+
+int TurretRobot::read_write(void)
+{
+	dartt_buffer_t r = {
+		.buf  = ds.ctl_base.buf,
+		.size = sizeof(uint32_t) * 5,
+		.len  = sizeof(uint32_t) * 5
+	};
+	int rc = dartt_read_multi(&r, &ds);
+	if(rc != DARTT_PROTOCOL_SUCCESS)
+	{
+		printf("Read fail %d\n", rc);
+	}
+	else
+	{
+		dartt_buffer_t w_positions = {
+			.buf  = ds.ctl_base.buf,
+			.size = sizeof(uint32_t)*2,
+			.len  = sizeof(uint32_t)*2
+		};
+		rc = dartt_write_multi(&w_positions, &ds);
+		if(rc != DARTT_PROTOCOL_SUCCESS)
+		{
+			printf("Write fail %d\n", rc);
+		}
+	}
+	return rc;
+}
+
+int TurretRobot::do_circles(float time)
+{
+	float y = sin(time) * 100 + 1200;
+	float x = cos(time) * 500 + 1500;
+	dp_ctl.s0_us = (int32_t)y;
+	dp_ctl.s1_us = (int32_t)x;
+
+	if(time - laser_ts > 10)
+	{
+		laser_ts = time;
+		laser_on = (~laser_on) & 1;
+		if(laser_on)
+		{
+			dp_ctl.action_flag = 1;
+		}
+		else
+		{
+			dp_ctl.action_flag = 2;
+		}
+		dartt_buffer_t w_laser = {
+			.buf  = (unsigned char *)(&dp_ctl.action_flag),
+			.size = sizeof(uint32_t),
+			.len  = sizeof(uint32_t)
+		};
+		int rc = dartt_write_multi(&w_laser, &ds);
+		if(rc != DARTT_PROTOCOL_SUCCESS)
+		{
+			printf("LASER WRITE fail %d\n", rc);
+		}
+	}
 }
