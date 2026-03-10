@@ -151,7 +151,7 @@ int main(int argc, char* argv[])
 		while (SDL_PollEvent(&event)) 
 		{
 			ImGui_ImplSDL2_ProcessEvent(&event);
-			if (event.type == SDL_QUIT) 
+			if (event.type == SDL_QUIT)
 			{
 				running = false;
 			}
@@ -160,6 +160,18 @@ int main(int argc, char* argv[])
 				event.window.windowID == SDL_GetWindowID(window))
 			{
 				running = false;
+			}
+			if (!robot.auto_circles &&
+				event.type == SDL_MOUSEBUTTONUP &&
+				event.button.button == SDL_BUTTON_RIGHT)
+			{
+				robot.laser_on = !robot.laser_on;
+				robot.dp_ctl.action_flag = robot.laser_on ? LASER_ON : LASER_OFF;
+				if(robot.laser_on)
+					printf("Laser: On\n");
+				else
+					printf("Laser: Off\n");
+				robot.write_laser();
 			}
 		}
 
@@ -173,9 +185,28 @@ int main(int argc, char* argv[])
 		{
 			robot.do_circles(plot.sys_sec);
 		}
+		else
+		{
+			// manual mode: left mouse held -> map mouse pos to servo positions
+			int mx, my;
+			uint32_t mouse_buttons = SDL_GetMouseState(&mx, &my);
+			if (mouse_buttons & SDL_BUTTON(SDL_BUTTON_LEFT))
+			{
+				float hw = ((float)(plot.window_width))/2.f;
+				float hh = ((float)(plot.window_height))/2.f;
+				float mxf = ((float)mx - hw)/hw;
+				float myf = -((float)my - hh)/hh;
+				// Map [0, w-1] -> [800, 2300] for s1_us (x axis)
+				// Map [0, h-1] -> [800, 2300] for s0_us (y axis)
+				robot.dp_ctl.s1_us = (int32_t)(mxf*750.f + 1550.f);
+				robot.dp_ctl.s0_us = (int32_t)(myf*750.f + 1550.f);
+				printf("(%d, %d)\n", robot.dp_ctl.s1_us, robot.dp_ctl.s0_us);
+			}
+		}
 		robot.read_write_position();
+		robot.laser_on = (bool)robot.dp_periph.laser_status;
 
-		
+
 
 		SDL_GetWindowSize(window, &plot.window_width, &plot.window_height);
 		plot.sys_sec = (float)(((double)SDL_GetTicks64())/1000.);
