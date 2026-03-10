@@ -19,7 +19,8 @@ public:
 	float laser_ts = 0;
 	int laser_on = 0;
 
-	int read_write(void);
+	int read_write_position(void);
+	int write_laser(void);
 	int do_circles(float time);
 
 	TurretRobot();

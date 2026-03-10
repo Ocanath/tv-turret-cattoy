@@ -53,7 +53,7 @@ TurretRobot::~TurretRobot()
 
 
 
-int TurretRobot::read_write(void)
+int TurretRobot::read_write_position(void)
 {
 	dartt_buffer_t r = {
 		.buf  = ds.ctl_base.buf,
@@ -100,15 +100,22 @@ int TurretRobot::do_circles(float time)
 		{
 			dp_ctl.action_flag = 2;
 		}
-		dartt_buffer_t w_laser = {
-			.buf  = (unsigned char *)(&dp_ctl.action_flag),
-			.size = sizeof(uint32_t),
-			.len  = sizeof(uint32_t)
-		};
-		int rc = dartt_write_multi(&w_laser, &ds);
-		if(rc != DARTT_PROTOCOL_SUCCESS)
-		{
-			printf("LASER WRITE fail %d\n", rc);
-		}
 	}
+	return write_laser();
+}
+
+
+int TurretRobot::write_laser(void)
+{
+	dartt_buffer_t w_laser = {
+		.buf  = (unsigned char *)(&dp_ctl.action_flag),
+		.size = sizeof(uint32_t),
+		.len  = sizeof(uint32_t)
+	};
+	int rc = dartt_write_multi(&w_laser, &ds);
+	if(rc != DARTT_PROTOCOL_SUCCESS)
+	{
+		printf("LASER WRITE fail %d\n", rc);
+	}
+	return rc;
 }

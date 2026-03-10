@@ -173,8 +173,9 @@ int main(int argc, char* argv[])
 		{
 			robot.do_circles(plot.sys_sec);
 		}
-		robot.read_write();
+		robot.read_write_position();
 
+		
 
 		SDL_GetWindowSize(window, &plot.window_width, &plot.window_height);
 		plot.sys_sec = (float)(((double)SDL_GetTicks64())/1000.);
