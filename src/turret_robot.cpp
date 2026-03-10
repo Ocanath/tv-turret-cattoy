@@ -94,11 +94,11 @@ int TurretRobot::do_circles(float time)
 		laser_on = (~laser_on) & 1;
 		if(laser_on)
 		{
-			dp_ctl.action_flag = 1;
+			dp_ctl.action_flag = LASER_ON;
 		}
 		else
 		{
-			dp_ctl.action_flag = 2;
+			dp_ctl.action_flag = LASER_OFF;
 		}
 	}
 	return write_laser();
