@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.22)
-project(spooler_controller C CXX)
+project(tv_laser_turret_controller C CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -58,6 +58,7 @@ set(APP_SOURCES
     src/plotting.cpp
     src/colors.cpp
     src/ui.cpp
+	src/turret_robot.cpp
 )
 
 # ============================================================================

@@ -44,6 +44,12 @@
 #include <algorithm>
 #include <string>
 
+#include "turret_robot.h"
+#include "cobs.h"
+
+
+
+
 int main(int argc, char* argv[])
 {
 	(void)argc;
@@ -129,6 +135,9 @@ int main(int argc, char* argv[])
 		printf("Initialize tinycsocket library success\n");
 	}
 
+
+	TurretRobot robot;
+
 	// Main loop
 	bool running = true;
 	bool do_pctl = false;
@@ -160,6 +169,7 @@ int main(int argc, char* argv[])
 		SDL_GetWindowSize(window, &plot.window_width, &plot.window_height);
 		plot.sys_sec = (float)(((double)SDL_GetTicks64())/1000.);
 
+		render_iface_ui(robot);
 		// Render
 		ImGui::Render();
 		int display_w, display_h;

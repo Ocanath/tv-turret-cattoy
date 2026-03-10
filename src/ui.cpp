@@ -9,7 +9,6 @@
 #include "colors.h"
 #include "dartt_init.h"
 
-
 bool init_imgui(SDL_Window* window, SDL_GLContext gl_context) 
 {
     IMGUI_CHECKVERSION();
@@ -46,15 +45,34 @@ void shutdown_imgui()
     ImGui::DestroyContext();
 }
 
-void render_iface_ui(void)
+void render_iface_ui(TurretRobot & robot)
 {
     ImGui::Begin("Interface Config");
-	/*
-	TODO:
-	-Button panel for BLE, Serial
-	-If in BLE, populate UI with connect, device list (filter by name?)
-	-If in Serial, autoconnect, disconnect button with baudrate setting
-	*/
+	if (robot.socket.connected)
+	{
+		ImGui::TextColored(ImVec4(0,1,0,1), "[Connected]");
+	}
+	else
+	{
+		ImGui::TextColored(ImVec4(1,0.3f,0.3f,1), "[Disconnected]");
+	}	
+
+	if (ImGui::InputText("IP", robot.socket.ip, sizeof(robot.socket.ip), ImGuiInputTextFlags_EnterReturnsTrue))
+	{
+		udp_connect(&robot.socket);
+	}
+	
+	int port = robot.socket.port;
+	if (ImGui::InputInt("Port", &port, 0, 0))
+	{
+		if (port > 0 && port <= 65535)
+		{ 
+			robot.socket.port = (uint16_t)port; 
+			udp_connect(&robot.socket); 
+		}
+	}
+	ImGui::Separator();
+
     ImGui::End();
 }
 

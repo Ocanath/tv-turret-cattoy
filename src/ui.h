@@ -3,6 +3,7 @@
 
 #include <SDL.h>
 #include "plotting.h"
+#include "turret_robot.h"
 
 class SpoolerRobot;
 
@@ -12,6 +13,6 @@ bool init_imgui(SDL_Window* window, SDL_GLContext gl_context);
 // Shutdown ImGui
 void shutdown_imgui();
 
-void render_iface_ui(void);
+void render_iface_ui(TurretRobot & robot);
 
 #endif // DARTT_UI_H
