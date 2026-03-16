@@ -163,7 +163,8 @@ int main(int argc, char* argv[])
 			}
 			if (!robot.auto_circles &&
 				event.type == SDL_MOUSEBUTTONUP &&
-				event.button.button == SDL_BUTTON_RIGHT)
+				event.button.button == SDL_BUTTON_RIGHT &&
+				!ImGui::GetIO().WantCaptureMouse)
 			{
 				robot.laser_on = !robot.laser_on;
 				robot.dp_ctl.action_flag = robot.laser_on ? LASER_ON : LASER_OFF;
@@ -190,7 +191,7 @@ int main(int argc, char* argv[])
 			// manual mode: left mouse held -> map mouse pos to servo positions
 			int mx, my;
 			uint32_t mouse_buttons = SDL_GetMouseState(&mx, &my);
-			if (mouse_buttons & SDL_BUTTON(SDL_BUTTON_LEFT))
+			if ((mouse_buttons & SDL_BUTTON(SDL_BUTTON_LEFT)) && !ImGui::GetIO().WantCaptureMouse)
 			{
 				float hw = ((float)(plot.window_width))/2.f;
 				float hh = ((float)(plot.window_height))/2.f;
