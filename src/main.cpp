@@ -212,6 +212,7 @@ int main(int argc, char* argv[])
 		plot.sys_sec = (float)(((double)SDL_GetTicks64())/1000.);
 
 		render_iface_ui(robot);
+		render_telemetry_ui(robot);
 		// Render
 		ImGui::Render();
 		int display_w, display_h;

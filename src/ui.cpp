@@ -8,6 +8,7 @@
 #include <string>
 #include "colors.h"
 #include "dartt_init.h"
+#include "control_interface.h"
 
 bool init_imgui(SDL_Window* window, SDL_GLContext gl_context) 
 {
@@ -95,3 +96,25 @@ void render_iface_ui(TurretRobot & robot)
     ImGui::End();
 }
 
+void render_telemetry_ui(TurretRobot & robot)
+{
+    ImGui::Begin("Telemetry");
+
+    ImGui::TextUnformatted("-- CTL Setpoints --");
+    ImGui::Text("s0_us:        %d", robot.dp_ctl.s0_us);
+    ImGui::Text("s1_us:        %d", robot.dp_ctl.s1_us);
+    ImGui::Text("ms:           %u", robot.dp_ctl.ms);
+    ImGui::Text("laser_status: %u", robot.dp_ctl.laser_status);
+    ImGui::Text("action_flag:  %u", robot.dp_ctl.action_flag);
+
+    ImGui::Separator();
+
+    ImGui::TextUnformatted("-- Periph Values --");
+    ImGui::Text("s0_us:        %d", robot.dp_periph.s0_us);
+    ImGui::Text("s1_us:        %d", robot.dp_periph.s1_us);
+    ImGui::Text("ms:           %u", robot.dp_periph.ms);
+    ImGui::Text("laser_status: %u", robot.dp_periph.laser_status);
+    ImGui::Text("action_flag:  %u", robot.dp_periph.action_flag);
+
+    ImGui::End();
+}

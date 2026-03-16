@@ -14,5 +14,6 @@ bool init_imgui(SDL_Window* window, SDL_GLContext gl_context);
 void shutdown_imgui();
 
 void render_iface_ui(TurretRobot & robot);
+void render_telemetry_ui(TurretRobot & robot);
 
 #endif // DARTT_UI_H
