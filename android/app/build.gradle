@@ -1,11 +1,11 @@
 apply plugin: 'com.android.application'
 
 android {
-    namespace 'com.ocanath.spoolercontroller'
+    namespace 'com.ocanath.laserturretcontroller'
     compileSdk 34
 
     defaultConfig {
-        applicationId 'com.ocanath.spoolercontroller'
+        applicationId 'com.ocanath.laserturretcontroller'
         minSdk 24
         targetSdk 34
         versionCode 1

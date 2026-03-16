@@ -32,7 +32,12 @@ bool init_imgui(SDL_Window* window, SDL_GLContext gl_context)
 
 #ifdef __ANDROID__
     io.ConfigFlags |= ImGuiConfigFlags_IsTouchScreen;
-    ImGui::GetStyle().TouchExtraPadding = ImVec2(8.0f, 8.0f);
+    float ddpi = 160.0f;
+    SDL_GetDisplayDPI(0, &ddpi, nullptr, nullptr);
+    float ui_scale = ddpi / 160.0f;
+    io.FontGlobalScale = ui_scale;
+    ImGui::GetStyle().ScaleAllSizes(ui_scale);
+    ImGui::GetStyle().TouchExtraPadding = ImVec2(16.0f, 16.0f);
 #endif
 
     return true;

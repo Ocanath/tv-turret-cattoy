@@ -8,7 +8,7 @@
     <uses-feature android:glEsVersion="0x00030000" android:required="true" />
 
     <application
-        android:label="Spooler Controller"
+        android:label="Laser Turret Controller"
         android:allowBackup="false"
         android:hasCode="true">
 
@@ -23,7 +23,7 @@
             </intent-filter>
             <meta-data
                 android:name="SDL_APP_NAME"
-                android:value="Spooler Controller" />
+                android:value="Laser Turret Controller" />
         </activity>
     </application>
 </manifest>
