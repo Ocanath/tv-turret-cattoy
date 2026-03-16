@@ -93,6 +93,20 @@ void render_iface_ui(TurretRobot & robot)
 			robot.auto_circles = false;
 		}
 	}
+
+	ImGui::Separator();
+
+	if(ImGui::Button("Laser On"))
+	{
+		robot.dp_ctl.action_flag = LASER_ON;
+		robot.write_laser();
+	}
+	ImGui::SameLine();
+	if(ImGui::Button("Laser Off"))
+	{
+		robot.dp_ctl.action_flag = LASER_OFF;
+		robot.write_laser();
+	}
     ImGui::End();
 }
 
