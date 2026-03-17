@@ -132,3 +132,67 @@ void render_telemetry_ui(TurretRobot & robot)
 
     ImGui::End();
 }
+
+void render_video_ui(MjpegStream& stream)
+{
+    ImGui::Begin("Video Feed");
+
+    // Status indicator
+    MjpegStatus status = stream.get_status();
+    switch (status) {
+        case MjpegStatus::Idle:
+            ImGui::TextColored(ImVec4(0.5f, 0.5f, 0.5f, 1.0f), "[Idle]");
+            break;
+        case MjpegStatus::Connecting:
+            ImGui::TextColored(ImVec4(1.0f, 1.0f, 0.0f, 1.0f), "[Connecting]");
+            break;
+        case MjpegStatus::Streaming:
+            ImGui::TextColored(ImVec4(0.0f, 1.0f, 0.0f, 1.0f), "[Streaming]");
+            break;
+        case MjpegStatus::Reconnecting:
+            ImGui::TextColored(ImVec4(1.0f, 0.6f, 0.0f, 1.0f), "[Reconnecting]");
+            break;
+    }
+
+    // Connection inputs
+    static char s_host[256] = "192.168.1.100";
+    static char s_path[256] = "/?action=stream";
+    static int  s_port      = 8080;
+
+    ImGui::InputText("Host", s_host, sizeof(s_host));
+    ImGui::InputInt("Port", &s_port, 0, 0);
+    ImGui::InputText("Path", s_path, sizeof(s_path));
+
+    // Connect / Disconnect button
+    if (status == MjpegStatus::Idle) {
+        if (ImGui::Button("Connect")) {
+            if (s_port > 0 && s_port <= 65535)
+                stream.connect(s_host, (uint16_t)s_port, s_path);
+        }
+    } else {
+        if (ImGui::Button("Disconnect"))
+            stream.disconnect();
+    }
+
+    ImGui::Separator();
+
+    // Video display
+    GLuint tex = stream.get_texture_id();
+    int tex_w  = stream.get_tex_width();
+    int tex_h  = stream.get_tex_height();
+
+    float avail_w = ImGui::GetContentRegionAvail().x;
+
+    if (tex != 0 && tex_w > 0 && tex_h > 0) {
+        float aspect    = (float)tex_h / (float)tex_w;
+        float display_w = avail_w;
+        float display_h = display_w * aspect;
+        ImGui::Image((ImTextureID)(uintptr_t)tex, ImVec2(display_w, display_h));
+    } else {
+        ImGui::Dummy(ImVec2(avail_w, avail_w * 9.0f / 16.0f));
+        ImGui::SetCursorPosY(ImGui::GetCursorPosY() - avail_w * 9.0f / 16.0f - ImGui::GetStyle().ItemSpacing.y);
+        ImGui::TextDisabled("  No signal");
+    }
+
+    ImGui::End();
+}

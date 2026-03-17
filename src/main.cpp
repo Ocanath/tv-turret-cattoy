@@ -40,6 +40,7 @@
 #include "ui.h"
 #include "dartt_init.h"
 #include "plotting.h"
+#include "mjpeg_stream.h"
 
 #include <algorithm>
 #include <string>
@@ -140,6 +141,8 @@ int main(int argc, char* argv[])
 	robot.dp_ctl.s0_us = 1500;
 	robot.dp_ctl.s1_us = 1500;
 
+	MjpegStream mjpeg_stream;
+
 	// Main loop
 	bool running = true;
 	bool do_pctl = false;
@@ -212,6 +215,8 @@ int main(int argc, char* argv[])
 		SDL_GetWindowSize(window, &plot.window_width, &plot.window_height);
 		plot.sys_sec = (float)(((double)SDL_GetTicks64())/1000.);
 
+		mjpeg_stream.pump_upload();
+		render_video_ui(mjpeg_stream);
 		render_iface_ui(robot);
 		render_telemetry_ui(robot);
 		// Render
@@ -231,6 +236,8 @@ int main(int argc, char* argv[])
 	// save_dartt_config("config.json", config);
 
 	// Cleanup — teardown GL resources before destroying the context
+	mjpeg_stream.disconnect();
+	mjpeg_stream.teardown_gl_resources();
 	plot.teardown_gl_resources();
 	shutdown_imgui();
 	SDL_GL_DeleteContext(gl_context);

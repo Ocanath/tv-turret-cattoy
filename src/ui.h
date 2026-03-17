@@ -4,6 +4,7 @@
 #include <SDL.h>
 #include "plotting.h"
 #include "turret_robot.h"
+#include "mjpeg_stream.h"
 
 class SpoolerRobot;
 
@@ -15,5 +16,6 @@ void shutdown_imgui();
 
 void render_iface_ui(TurretRobot & robot);
 void render_telemetry_ui(TurretRobot & robot);
+void render_video_ui(MjpegStream& stream);
 
 #endif // DARTT_UI_H

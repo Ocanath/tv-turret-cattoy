@@ -59,6 +59,7 @@ set(APP_SOURCES
     src/colors.cpp
     src/ui.cpp
 	src/turret_robot.cpp
+    src/mjpeg_stream.cpp
 )
 
 # ============================================================================
@@ -134,4 +135,8 @@ target_link_libraries(${APP_TARGET}
     PPP
     dartt_protocol
     dartt_checksum
+)
+
+target_include_directories(${APP_TARGET} PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/external
 )
