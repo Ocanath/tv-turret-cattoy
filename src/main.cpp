@@ -142,6 +142,7 @@ int main(int argc, char* argv[])
 	robot.dp_ctl.s1_us = 1500;
 
 	MjpegStream mjpeg_stream;
+	mjpeg_stream.connect("192.168.0.149", 8081, "/?action=stream");
 
 	// Main loop
 	bool running = true;

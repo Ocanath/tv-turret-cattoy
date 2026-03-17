@@ -152,24 +152,47 @@ void MjpegStream::thread_func(std::string host, uint16_t port, std::string path)
     while (!m_stop_flag.load()) {
         // ---- Connect ----
         m_status.store(MjpegStatus::Connecting);
+        printf("[mjpeg] connecting to %s:%u%s\n", host.c_str(), port, path.c_str());
 
         TcsSocket sock = TCS_SOCKET_INVALID;
-        if (tcs_tcp_client_str(&sock, host.c_str(), port, 3000) != TCS_SUCCESS) {
-            tcs_close(&sock);
-            goto reconnect;
+        {
+            TcsResult res = tcs_socket_preset(&sock, TCS_PRESET_TCP_IP4);
+            if (res != TCS_SUCCESS) {
+                printf("[mjpeg] socket create failed (%d)\n", res);
+                tcs_close(&sock);
+                goto reconnect;
+            }
+
+            struct TcsAddress addr = TCS_ADDRESS_NONE;
+            size_t addr_count = 0;
+            res = tcs_address_resolve(host.c_str(), TCS_AF_IP4, &addr, 1, &addr_count);
+            if (res != TCS_SUCCESS || addr_count == 0) {
+                printf("[mjpeg] address resolve failed (%d)\n", res);
+                tcs_close(&sock);
+                goto reconnect;
+            }
+            addr.data.ip4.port = port;
+
+            res = tcs_connect(sock, &addr);
+            if (res != TCS_SUCCESS) {
+                printf("[mjpeg] tcp connect failed (%d)\n", res);
+                tcs_close(&sock);
+                goto reconnect;
+            }
         }
+        printf("[mjpeg] tcp connected\n");
 
         // Set receive timeout (5 seconds) to detect stalled streams
         tcs_opt_receive_timeout_set(sock, 5000);
 
         {
-            // ---- Send HTTP GET ----
-            std::string req = "GET " + path + " HTTP/1.1\r\n"
+            // ---- Send HTTP GET — use HTTP/1.0 to avoid chunked encoding ----
+            std::string req = "GET " + path + " HTTP/1.0\r\n"
                               "Host: " + host + "\r\n"
-                              "Connection: close\r\n"
                               "\r\n";
             size_t sent = 0;
             if (tcs_send(sock, (const uint8_t*)req.c_str(), req.size(), TCS_MSG_SENDALL, &sent) != TCS_SUCCESS) {
+                printf("[mjpeg] send failed\n");
                 tcs_close(&sock);
                 goto reconnect;
             }
@@ -180,30 +203,38 @@ void MjpegStream::thread_func(std::string host, uint16_t port, std::string path)
                 std::string line;
                 while (recv_line(sock, line)) {
                     if (m_stop_flag.load()) { tcs_close(&sock); return; }
+                    printf("[mjpeg] hdr: %s\n", line.c_str());
                     if (line.empty()) break; // end of headers
 
                     std::string ll = to_lower(line);
-                    auto pos = ll.find("content-type:");
-                    if (pos != std::string::npos) {
+                    if (ll.find("content-type:") != std::string::npos) {
                         auto bpos = ll.find("boundary=");
                         if (bpos != std::string::npos) {
-                            boundary = line.substr(bpos + 9); // original case
+                            boundary = line.substr(bpos + 9);
+                            // Strip optional quotes
+                            if (!boundary.empty() && boundary.front() == '"')
+                                boundary = boundary.substr(1);
+                            if (!boundary.empty() && boundary.back() == '"')
+                                boundary.pop_back();
                             // Strip optional leading "--"
                             if (boundary.size() >= 2 && boundary[0] == '-' && boundary[1] == '-')
                                 boundary = boundary.substr(2);
                             // Normalize: prepend "--"
                             boundary = "--" + boundary;
+                            printf("[mjpeg] boundary: [%s]\n", boundary.c_str());
                         }
                     }
                 }
             }
 
             if (boundary.empty()) {
+                printf("[mjpeg] no boundary found, dropping connection\n");
                 tcs_close(&sock);
                 goto reconnect;
             }
 
             m_status.store(MjpegStatus::Streaming);
+            int frame_count = 0;
 
             // ---- Per-frame loop ----
             while (!m_stop_flag.load()) {
@@ -213,12 +244,12 @@ void MjpegStream::thread_func(std::string host, uint16_t port, std::string path)
                     bool found = false;
                     while (recv_line(sock, line)) {
                         if (m_stop_flag.load()) { tcs_close(&sock); return; }
-                        if (line == boundary || line.rfind(boundary, 0) == 0) {
+                        if (line.rfind(boundary, 0) == 0) {
                             found = true;
                             break;
                         }
                     }
-                    if (!found) break;
+                    if (!found) { printf("[mjpeg] boundary search failed\n"); break; }
                 }
 
                 // Read part headers
@@ -230,16 +261,25 @@ void MjpegStream::thread_func(std::string host, uint16_t port, std::string path)
                         if (line.empty()) break;
                         std::string ll = to_lower(line);
                         if (ll.rfind("content-length:", 0) == 0) {
-                            content_length = std::stoi(line.substr(15));
+                            // value starts after "content-length:" (15 chars), skip spaces
+                            size_t i = 15;
+                            while (i < line.size() && line[i] == ' ') ++i;
+                            content_length = std::stoi(line.substr(i));
                         }
                     }
                 }
 
-                if (content_length <= 0) break;
+                if (content_length <= 0) {
+                    printf("[mjpeg] bad content-length: %d\n", content_length);
+                    break;
+                }
 
                 // Read JPEG payload
                 std::vector<uint8_t> jpeg_buf((size_t)content_length);
-                if (!recv_exact(sock, jpeg_buf.data(), (size_t)content_length)) break;
+                if (!recv_exact(sock, jpeg_buf.data(), (size_t)content_length)) {
+                    printf("[mjpeg] recv_exact failed for frame %d\n", frame_count);
+                    break;
+                }
 
                 // Decode JPEG on background thread
                 int w = 0, h = 0, channels = 0;
@@ -247,9 +287,11 @@ void MjpegStream::thread_func(std::string host, uint16_t port, std::string path)
                     jpeg_buf.data(), content_length,
                     &w, &h, &channels, 4 /*force RGBA*/);
 
-                if (!decoded) continue;
+                if (!decoded) {
+                    printf("[mjpeg] stbi decode failed frame %d: %s\n", frame_count, stbi_failure_reason());
+                    continue;
+                }
 
-                // Store in pending frame
                 {
                     std::lock_guard<std::mutex> lock(m_frame_mutex);
                     m_pending.width  = w;
@@ -258,6 +300,10 @@ void MjpegStream::thread_func(std::string host, uint16_t port, std::string path)
                     m_pending.dirty  = true;
                 }
                 stbi_image_free(decoded);
+
+                if (frame_count == 0)
+                    printf("[mjpeg] first frame decoded: %dx%d\n", w, h);
+                ++frame_count;
             }
         }
 
@@ -266,7 +312,7 @@ void MjpegStream::thread_func(std::string host, uint16_t port, std::string path)
     reconnect:
         if (m_stop_flag.load()) break;
         m_status.store(MjpegStatus::Reconnecting);
-        // Sleep 3 seconds, checking stop flag every 100ms
+        printf("[mjpeg] reconnecting in 3s\n");
         for (int i = 0; i < 30 && !m_stop_flag.load(); ++i)
             SDL_Delay(100);
     }
