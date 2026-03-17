@@ -135,26 +135,56 @@ void render_telemetry_ui(TurretRobot & robot)
 
 void render_video_ui(MjpegStream& stream)
 {
-    ImGui::Begin("Video Feed");
+    // --- Fullscreen background video ---
+    ImGuiIO& io = ImGui::GetIO();
+    ImGui::SetNextWindowPos(ImVec2(0, 0));
+    ImGui::SetNextWindowSize(io.DisplaySize);
+    ImGui::SetNextWindowBgAlpha(0.0f);
+    ImGui::Begin("##video_bg", nullptr,
+        ImGuiWindowFlags_NoDecoration      |
+        ImGuiWindowFlags_NoInputs          |
+        ImGuiWindowFlags_NoNav             |
+        ImGuiWindowFlags_NoMove            |
+        ImGuiWindowFlags_NoBringToFrontOnFocus |
+        ImGuiWindowFlags_NoSavedSettings   |
+        ImGuiWindowFlags_NoScrollbar);
 
-    // Status indicator
-    MjpegStatus status = stream.get_status();
-    switch (status) {
-        case MjpegStatus::Idle:
-            ImGui::TextColored(ImVec4(0.5f, 0.5f, 0.5f, 1.0f), "[Idle]");
-            break;
-        case MjpegStatus::Connecting:
-            ImGui::TextColored(ImVec4(1.0f, 1.0f, 0.0f, 1.0f), "[Connecting]");
-            break;
-        case MjpegStatus::Streaming:
-            ImGui::TextColored(ImVec4(0.0f, 1.0f, 0.0f, 1.0f), "[Streaming]");
-            break;
-        case MjpegStatus::Reconnecting:
-            ImGui::TextColored(ImVec4(1.0f, 0.6f, 0.0f, 1.0f), "[Reconnecting]");
-            break;
+    GLuint tex = stream.get_texture_id();
+    int tex_w  = stream.get_tex_width();
+    int tex_h  = stream.get_tex_height();
+
+    if (tex != 0 && tex_w > 0 && tex_h > 0) {
+        float win_w = io.DisplaySize.x;
+        float win_h = io.DisplaySize.y;
+        float tex_aspect = (float)tex_w / (float)tex_h;
+        float win_aspect = win_w / win_h;
+        float draw_w, draw_h;
+        if (tex_aspect > win_aspect) {
+            draw_w = win_w;
+            draw_h = win_w / tex_aspect;
+        } else {
+            draw_h = win_h;
+            draw_w = win_h * tex_aspect;
+        }
+        float off_x = (win_w - draw_w) * 0.5f;
+        float off_y = (win_h - draw_h) * 0.5f;
+        ImGui::SetCursorPos(ImVec2(off_x, off_y));
+        ImGui::Image((ImTextureID)(uintptr_t)tex, ImVec2(draw_w, draw_h));
     }
 
-    // Connection inputs
+    ImGui::End();
+
+    // --- Camera controls panel ---
+    ImGui::Begin("Camera");
+
+    MjpegStatus status = stream.get_status();
+    switch (status) {
+        case MjpegStatus::Idle:         ImGui::TextColored(ImVec4(0.5f,0.5f,0.5f,1), "[Idle]");         break;
+        case MjpegStatus::Connecting:   ImGui::TextColored(ImVec4(1,1,0,1),           "[Connecting]");   break;
+        case MjpegStatus::Streaming:    ImGui::TextColored(ImVec4(0,1,0,1),           "[Streaming]");    break;
+        case MjpegStatus::Reconnecting: ImGui::TextColored(ImVec4(1,0.6f,0,1),        "[Reconnecting]"); break;
+    }
+
     static char s_host[256] = "192.168.0.149";
     static char s_path[256] = "/?action=stream";
     static int  s_port      = 8081;
@@ -163,7 +193,6 @@ void render_video_ui(MjpegStream& stream)
     ImGui::InputInt("Port", &s_port, 0, 0);
     ImGui::InputText("Path", s_path, sizeof(s_path));
 
-    // Connect / Disconnect button
     if (status == MjpegStatus::Idle) {
         if (ImGui::Button("Connect")) {
             if (s_port > 0 && s_port <= 65535)
@@ -172,26 +201,6 @@ void render_video_ui(MjpegStream& stream)
     } else {
         if (ImGui::Button("Disconnect"))
             stream.disconnect();
-    }
-
-    ImGui::Separator();
-
-    // Video display
-    GLuint tex = stream.get_texture_id();
-    int tex_w  = stream.get_tex_width();
-    int tex_h  = stream.get_tex_height();
-
-    float avail_w = ImGui::GetContentRegionAvail().x;
-
-    if (tex != 0 && tex_w > 0 && tex_h > 0) {
-        float aspect    = (float)tex_h / (float)tex_w;
-        float display_w = avail_w;
-        float display_h = display_w * aspect;
-        ImGui::Image((ImTextureID)(uintptr_t)tex, ImVec2(display_w, display_h));
-    } else {
-        ImGui::Dummy(ImVec2(avail_w, avail_w * 9.0f / 16.0f));
-        ImGui::SetCursorPosY(ImGui::GetCursorPosY() - avail_w * 9.0f / 16.0f - ImGui::GetStyle().ItemSpacing.y);
-        ImGui::TextDisabled("  No signal");
     }
 
     ImGui::End();
