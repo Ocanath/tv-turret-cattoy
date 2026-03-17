@@ -274,12 +274,21 @@ void MjpegStream::thread_func(std::string host, uint16_t port, std::string path)
                     break;
                 }
 
-                // Read JPEG payload
+                // Always drain TCP buffer to prevent backlog, but skip decode
+                // if the main thread hasn't consumed the previous frame yet.
                 std::vector<uint8_t> jpeg_buf((size_t)content_length);
                 if (!recv_exact(sock, jpeg_buf.data(), (size_t)content_length)) {
                     printf("[mjpeg] recv_exact failed for frame %d\n", frame_count);
                     break;
                 }
+
+                // Check if main thread is still holding a pending frame
+                bool behind;
+                {
+                    std::lock_guard<std::mutex> lock(m_frame_mutex);
+                    behind = m_pending.dirty;
+                }
+                if (behind) continue; // drained the data, skip decode to catch up
 
                 // Decode JPEG on background thread
                 int w = 0, h = 0, channels = 0;
