@@ -155,9 +155,9 @@ void render_video_ui(MjpegStream& stream)
     }
 
     // Connection inputs
-    static char s_host[256] = "192.168.1.100";
+    static char s_host[256] = "192.168.0.149";
     static char s_path[256] = "/?action=stream";
-    static int  s_port      = 8080;
+    static int  s_port      = 8081;
 
     ImGui::InputText("Host", s_host, sizeof(s_host));
     ImGui::InputInt("Port", &s_port, 0, 0);
