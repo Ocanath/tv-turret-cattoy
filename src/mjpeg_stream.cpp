@@ -153,17 +153,9 @@ void MjpegStream::thread_func(std::string host, uint16_t port, std::string path)
         // ---- Connect ----
         m_status.store(MjpegStatus::Connecting);
 
-        char port_str[16];
-        SDL_snprintf(port_str, sizeof(port_str), "%u", (unsigned)port);
-
-        TcsSocket sock = TCS_NULLSOCKET;
-        TcsResult cr = tcs_create(&sock, TCS_TYPE_TCP_IP4);
-        if (cr != TCS_SUCCESS) {
-            goto reconnect;
-        }
-
-        if (tcs_connect(sock, host.c_str(), port_str) != TCS_SUCCESS) {
-            tcs_destroy(&sock);
+        TcsSocket sock = TCS_SOCKET_INVALID;
+        if (tcs_tcp_client_str(&sock, host.c_str(), port, 3000) != TCS_SUCCESS) {
+            tcs_close(&sock);
             goto reconnect;
         }
 
@@ -178,7 +170,7 @@ void MjpegStream::thread_func(std::string host, uint16_t port, std::string path)
                               "\r\n";
             size_t sent = 0;
             if (tcs_send(sock, (const uint8_t*)req.c_str(), req.size(), TCS_MSG_SENDALL, &sent) != TCS_SUCCESS) {
-                tcs_destroy(&sock);
+                tcs_close(&sock);
                 goto reconnect;
             }
 
@@ -187,7 +179,7 @@ void MjpegStream::thread_func(std::string host, uint16_t port, std::string path)
             {
                 std::string line;
                 while (recv_line(sock, line)) {
-                    if (m_stop_flag.load()) { tcs_destroy(&sock); return; }
+                    if (m_stop_flag.load()) { tcs_close(&sock); return; }
                     if (line.empty()) break; // end of headers
 
                     std::string ll = to_lower(line);
@@ -207,7 +199,7 @@ void MjpegStream::thread_func(std::string host, uint16_t port, std::string path)
             }
 
             if (boundary.empty()) {
-                tcs_destroy(&sock);
+                tcs_close(&sock);
                 goto reconnect;
             }
 
@@ -220,7 +212,7 @@ void MjpegStream::thread_func(std::string host, uint16_t port, std::string path)
                     std::string line;
                     bool found = false;
                     while (recv_line(sock, line)) {
-                        if (m_stop_flag.load()) { tcs_destroy(&sock); return; }
+                        if (m_stop_flag.load()) { tcs_close(&sock); return; }
                         if (line == boundary || line.rfind(boundary, 0) == 0) {
                             found = true;
                             break;
@@ -234,7 +226,7 @@ void MjpegStream::thread_func(std::string host, uint16_t port, std::string path)
                 {
                     std::string line;
                     while (recv_line(sock, line)) {
-                        if (m_stop_flag.load()) { tcs_destroy(&sock); return; }
+                        if (m_stop_flag.load()) { tcs_close(&sock); return; }
                         if (line.empty()) break;
                         std::string ll = to_lower(line);
                         if (ll.rfind("content-length:", 0) == 0) {
@@ -269,7 +261,7 @@ void MjpegStream::thread_func(std::string host, uint16_t port, std::string path)
             }
         }
 
-        tcs_destroy(&sock);
+        tcs_close(&sock);
 
     reconnect:
         if (m_stop_flag.load()) break;
