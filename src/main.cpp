@@ -220,6 +220,11 @@ int main(int argc, char* argv[])
 		render_video_ui(mjpeg_stream);
 		render_iface_ui(robot);
 		render_telemetry_ui(robot);
+
+		if (ImGui::GetIO().WantTextInput)
+			SDL_StartTextInput();
+		else
+			SDL_StopTextInput();
 		// Render
 		ImGui::Render();
 		int display_w, display_h;
