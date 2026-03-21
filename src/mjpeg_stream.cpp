@@ -173,12 +173,35 @@ void MjpegStream::thread_func(std::string host, uint16_t port, std::string path)
             }
             addr.data.ip4.port = port;
 
-            res = tcs_connect(sock, &addr);
-            if (res != TCS_SUCCESS) {
-                printf("[mjpeg] tcp connect failed (%d)\n", res);
+            // Non-blocking connect so we can respect m_stop_flag
+            tcs_opt_nonblocking_set(sock, true);
+            tcs_connect(sock, &addr); // returns immediately (EINPROGRESS)
+
+            // Poll for writability (= connected) or error, 100ms slices
+            struct TcsPool* pool = nullptr;
+            tcs_pool_create(&pool);
+            tcs_pool_add(pool, sock, nullptr, false, true, true);
+
+            bool connected = false;
+            for (int i = 0; i < 30 && !m_stop_flag.load(); ++i) { // 3s timeout
+                struct TcsPollEvent ev = TCS_POOL_EVENT_EMPTY;
+                size_t populated = 0;
+                tcs_pool_poll(pool, &ev, 1, &populated, 100);
+                if (populated > 0) {
+                    connected = ev.can_write && ev.error == TCS_SUCCESS;
+                    break;
+                }
+            }
+            tcs_pool_destroy(&pool);
+
+            if (!connected) {
+                printf("[mjpeg] tcp connect failed or cancelled\n");
                 tcs_close(&sock);
                 goto reconnect;
             }
+
+            // Back to blocking for normal I/O
+            tcs_opt_nonblocking_set(sock, false);
         }
         printf("[mjpeg] tcp connected\n");
 
