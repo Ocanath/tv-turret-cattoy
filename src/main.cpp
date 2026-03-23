@@ -38,6 +38,7 @@
 
 // App
 #include "ui.h"
+#include "config.h"
 #include "dartt_init.h"
 #include "plotting.h"
 #include "mjpeg_stream.h"
@@ -69,6 +70,17 @@ int main(int argc, char* argv[])
 		printf("SDL could not initialize! SDL_Error: %s\n", SDL_GetError());
 		return -1;
 	}
+
+	// Load config (SDL_GetPrefPath works on desktop and Android)
+	AppConfig cfg;
+	config_defaults(cfg);
+	std::string config_path;
+	{
+		char* pref = SDL_GetPrefPath("Ocanath", "LaserTurret");
+		config_path = pref ? (std::string(pref) + "config.ini") : "config.ini";
+		if (pref) SDL_free(pref);
+	}
+	config_load(config_path.c_str(), cfg);
 
 	// GL attributes
 	SDL_GL_SetAttribute(SDL_GL_CONTEXT_FLAGS, 0);
@@ -140,9 +152,13 @@ int main(int argc, char* argv[])
 	TurretRobot robot;
 	robot.dp_ctl.s0_us = 1500;
 	robot.dp_ctl.s1_us = 1500;
+	// Override constructor defaults with saved config
+	snprintf(robot.socket.ip, sizeof(robot.socket.ip), "%s", cfg.robot_ip);
+	robot.socket.port = cfg.robot_port;
+	udp_connect(&robot.socket);
 
 	MjpegStream mjpeg_stream;
-	mjpeg_stream.connect("192.168.0.149", 8081, "/?action=stream");
+	mjpeg_stream.connect(cfg.cam_host, cfg.cam_port, cfg.cam_path);
 
 	// Main loop
 	bool running = true;
@@ -217,9 +233,14 @@ int main(int argc, char* argv[])
 		plot.sys_sec = (float)(((double)SDL_GetTicks64())/1000.);
 
 		mjpeg_stream.pump_upload();
-		render_video_ui(mjpeg_stream);
-		render_iface_ui(robot);
+		bool save_cam   = render_video_ui(mjpeg_stream, cfg);
+		bool save_iface = render_iface_ui(robot, cfg);
 		render_telemetry_ui(robot);
+
+		if (save_iface || save_cam)
+		{
+			config_save(config_path.c_str(), cfg);
+		}
 
 		if (ImGui::GetIO().WantTextInput)
 			SDL_StartTextInput();
@@ -237,9 +258,6 @@ int main(int argc, char* argv[])
 
 		SDL_GL_SwapWindow(window);
 	}
-
-	// Save UI settings back to config
-	// save_dartt_config("config.json", config);
 
 	// Cleanup — teardown GL resources before destroying the context
 	mjpeg_stream.disconnect();

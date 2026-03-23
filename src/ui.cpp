@@ -1,4 +1,5 @@
 #include "ui.h"
+#include "config.h"
 #include "imgui.h"
 #include "imgui_impl_sdl2.h"
 #include "imgui_impl_opengl3.h"
@@ -51,8 +52,9 @@ void shutdown_imgui()
     ImGui::DestroyContext();
 }
 
-void render_iface_ui(TurretRobot & robot)
+bool render_iface_ui(TurretRobot& robot, AppConfig& cfg)
 {
+    bool save_pressed = false;
     ImGui::Begin("Interface Config");
 	if (robot.socket.connected)
 	{
@@ -61,21 +63,28 @@ void render_iface_ui(TurretRobot & robot)
 	else
 	{
 		ImGui::TextColored(ImVec4(1,0.3f,0.3f,1), "[Disconnected]");
-	}	
+	}
 
 	if (ImGui::InputText("IP", robot.socket.ip, sizeof(robot.socket.ip), ImGuiInputTextFlags_EnterReturnsTrue))
 	{
 		udp_connect(&robot.socket);
 	}
-	
+
 	int port = robot.socket.port;
 	if (ImGui::InputInt("Port", &port, 0, 0))
 	{
 		if (port > 0 && port <= 65535)
-		{ 
-			robot.socket.port = (uint16_t)port; 
-			udp_connect(&robot.socket); 
+		{
+			robot.socket.port = (uint16_t)port;
+			udp_connect(&robot.socket);
 		}
+	}
+
+	if (ImGui::Button("Save##iface"))
+	{
+		snprintf(cfg.robot_ip, sizeof(cfg.robot_ip), "%s", robot.socket.ip);
+		cfg.robot_port = robot.socket.port;
+		save_pressed = true;
 	}
 	ImGui::Separator();
 
@@ -108,6 +117,7 @@ void render_iface_ui(TurretRobot & robot)
 		robot.write_laser();
 	}
     ImGui::End();
+    return save_pressed;
 }
 
 void render_telemetry_ui(TurretRobot & robot)
@@ -133,8 +143,9 @@ void render_telemetry_ui(TurretRobot & robot)
     ImGui::End();
 }
 
-void render_video_ui(MjpegStream& stream)
+bool render_video_ui(MjpegStream& stream, AppConfig& cfg)
 {
+    bool save_pressed = false;
     // --- Fullscreen background video ---
     ImGuiIO& io = ImGui::GetIO();
     ImGui::SetNextWindowPos(ImVec2(0, 0));
@@ -185,23 +196,24 @@ void render_video_ui(MjpegStream& stream)
         case MjpegStatus::Reconnecting: ImGui::TextColored(ImVec4(1,0.6f,0,1),        "[Reconnecting]"); break;
     }
 
-    static char s_host[256] = "192.168.0.149";
-    static char s_path[256] = "/?action=stream";
-    static int  s_port      = 8081;
-
-    ImGui::InputText("Host", s_host, sizeof(s_host));
-    ImGui::InputInt("Port", &s_port, 0, 0);
-    ImGui::InputText("Path", s_path, sizeof(s_path));
+    ImGui::InputText("Host", cfg.cam_host, sizeof(cfg.cam_host));
+    int cam_port = cfg.cam_port;
+    if (ImGui::InputInt("Port", &cam_port, 0, 0))
+        if (cam_port > 0 && cam_port <= 65535)
+            cfg.cam_port = (uint16_t)cam_port;
+    ImGui::InputText("Path", cfg.cam_path, sizeof(cfg.cam_path));
 
     if (status == MjpegStatus::Idle) {
-        if (ImGui::Button("Connect")) {
-            if (s_port > 0 && s_port <= 65535)
-                stream.connect(s_host, (uint16_t)s_port, s_path);
-        }
+        if (ImGui::Button("Connect"))
+            stream.connect(cfg.cam_host, cfg.cam_port, cfg.cam_path);
     } else {
         if (ImGui::Button("Disconnect"))
             stream.disconnect();
     }
+    ImGui::SameLine();
+    if (ImGui::Button("Save##cam"))
+        save_pressed = true;
 
     ImGui::End();
+    return save_pressed;
 }

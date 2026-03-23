@@ -54,11 +54,12 @@ add_subdirectory(external/dartt-protocol)
 
 set(APP_SOURCES
     src/main.cpp
+    src/config.cpp
     src/dartt_init.cpp
     src/plotting.cpp
     src/colors.cpp
     src/ui.cpp
-	src/turret_robot.cpp
+    src/turret_robot.cpp
     src/mjpeg_stream.cpp
 )
 
